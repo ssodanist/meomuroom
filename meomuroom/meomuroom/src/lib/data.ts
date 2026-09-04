@@ -25,14 +25,14 @@ import {
   users as mockUsers,
 } from './mockData';
 import {
-  clearLinkedSocialId,
+  clearLinkedAccount,
   clearSession,
   clearSignupDraft,
-  getLinkedSocialId,
-  getSessionUserId,
+  getLinkedAccount,
+  getSessionUser,
   getSignupDraft,
-  setLinkedSocialId,
-  setSessionUserId,
+  setLinkedAccount,
+  setSessionUser,
   setSignupDraft,
 } from './session';
 import type {
@@ -73,14 +73,22 @@ if (!isSupabaseConfigured) {
 
 // 로그인 세션이 있으면 현재 사용자를, 없으면 null을 반환합니다.
 // (로그인 화면 등 "로그인 안 돼 있어도 되는" 화면에서 사용)
+//
+// 중요: 세션 쿠키(mm_session) 자체에 프로필 전체가 들어있으므로, 서버리스
+// 인스턴스가 매번 바뀌어도(=mockUsers 배열이 초기 상태여도) 로그인 상태를 잃지
+// 않습니다. mockUsers는 다른 회원(글쓴이 등)을 보여줄 때만 참고용으로 씁니다.
 export async function getCurrentUser(): Promise<User | null> {
-  const userId = getSessionUserId();
-  if (!userId) return null;
-  const user = mockUsers.find((u) => u.id === userId && !u.isWithdrawn);
-  if (!user) return null;
+  const sessionUser = getSessionUser();
+  if (!sessionUser || sessionUser.isWithdrawn) return null;
   // 아이디어11: 로그인 세션이 살아있다는 것 자체가 "오늘 접속함" 안부 신호입니다.
-  user.lastActiveAt = new Date().toISOString();
-  return user;
+  sessionUser.lastActiveAt = new Date().toISOString();
+  // 이 서버 인스턴스가 마침 그 회원을 기억하고 있다면 최신 정보로 맞춰둡니다
+  // (같은 인스턴스가 다음 요청도 처리할 경우를 위한 best-effort 캐시일 뿐,
+  // 로그인 여부 판단 자체는 위 쿠키만으로 이미 끝났습니다).
+  const idx = mockUsers.findIndex((u) => u.id === sessionUser.id);
+  if (idx > -1) mockUsers[idx] = sessionUser;
+  else mockUsers.push(sessionUser);
+  return sessionUser;
 }
 
 // 보호된 화면에서 사용합니다. 로그인 안 돼 있으면 /login 으로 보냅니다.
@@ -97,6 +105,10 @@ export type LoginOutcome =
 
 // existing이 있으면 로그인(또는 30일 이내 탈퇴 복구)시키고, 없으면 회원가입
 // 절차를 시작합니다. 카카오/네이버/문자 로그인이 공통으로 쓰는 판정 로직입니다.
+//
+// existing은 mockUsers(서버 메모리)가 아니라 mm_link_<provider> 쿠키에서 그대로
+// 가져온 프로필입니다 — 서버리스 환경에서는 메모리가 매번 리셋될 수 있어서,
+// "이 브라우저가 전에 가입한 적 있는지"는 오직 이 쿠키로만 판단합니다.
 function resolveOrStartSignup(
   provider: AuthProvider,
   socialId: string,
@@ -109,15 +121,15 @@ function resolveOrStartSignup(
       const daysSinceWithdraw = (Date.now() - withdrawnAtMs) / (1000 * 60 * 60 * 24);
       if (daysSinceWithdraw <= WITHDRAW_RESTORE_WINDOW_DAYS) {
         // 아이디어9·10: 탈퇴 30일 이내 재로그인 → 그대로 복구
-        existing.isWithdrawn = false;
-        existing.withdrawnAt = null;
-        setSessionUserId(existing.id);
+        const restored: User = { ...existing, isWithdrawn: false, withdrawnAt: null };
+        setSessionUser(restored);
+        setLinkedAccount(provider, { socialId, user: restored });
         return { kind: 'logged_in', restored: true };
       }
       // 30일이 지나 완전히 지워진 것으로 취급 — 같은 계정으로 새로 가입합니다.
-      clearLinkedSocialId(provider);
+      clearLinkedAccount(provider);
     } else {
-      setSessionUserId(existing.id);
+      setSessionUser(existing);
       return { kind: 'logged_in', restored: false };
     }
   }
@@ -134,27 +146,25 @@ export async function startLogin(
   provider: 'kakao' | 'naver',
   assisted: boolean
 ): Promise<LoginOutcome> {
-  const linkedId = getLinkedSocialId(provider);
-  const existing = linkedId
-    ? mockUsers.find((u) => u.socialId === linkedId && u.authProvider === provider)
-    : undefined;
+  const linked = getLinkedAccount(provider);
   return resolveOrStartSignup(
     provider,
-    linkedId ?? `${provider}-${newId('social')}`,
+    linked?.socialId ?? `${provider}-${newId('social')}`,
     assisted,
-    existing
+    linked?.user
   );
 }
 
 // 아이디어13: 카카오·네이버 계정이 없는 소수를 위한 문자(SMS) 예비 경로입니다.
-// 휴대폰 번호 자체가 안정적인 식별자라 브라우저 연결 쿠키 없이도 다음에 같은
-// 번호로 다시 로그인하면 같은 계정으로 인식됩니다.
+// 휴대폰 번호 자체가 안정적인 식별자라, 이 번호로 가입했던 적이 있는지는
+// mm_link_sms 쿠키에 저장해둔 프로필로 판단합니다.
 export async function startSmsLogin(
   phone: string,
   assisted: boolean
 ): Promise<LoginOutcome> {
   const socialId = `sms-${phone.replace(/\D/g, '')}`;
-  const existing = mockUsers.find((u) => u.socialId === socialId && u.authProvider === 'sms');
+  const linked = getLinkedAccount('sms');
+  const existing = linked?.socialId === socialId ? linked.user : undefined;
   return resolveOrStartSignup('sms', socialId, assisted, existing);
 }
 
@@ -220,8 +230,8 @@ export async function completeSignup(input: {
     withdrawnAt: null,
   };
   mockUsers.push(user);
-  setLinkedSocialId(draft.provider, draft.socialId);
-  setSessionUserId(user.id);
+  setLinkedAccount(draft.provider, { socialId: draft.socialId, user });
+  setSessionUser(user);
   clearSignupDraft();
   return user;
 }
@@ -233,40 +243,42 @@ export async function logout(): Promise<void> {
 
 // 아이디어9: 탈퇴 — 죄책감 유발형 설문 없이 바로 처리하고, 30일 안에는 복구할 수
 // 있도록 데이터는 남겨둡니다 (완전 삭제가 아니라 isWithdrawn 표시).
-export async function withdraw(userId: string): Promise<void> {
-  const user = mockUsers.find((u) => u.id === userId);
-  if (user) {
-    user.isWithdrawn = true;
-    user.withdrawnAt = new Date().toISOString();
-  }
+// 서버리스 환경에서는 mockUsers를 뒤져서 회원을 찾는 대신, 현재 세션의 프로필을
+// 그대로 받아 mm_link_<provider> 쿠키에 "탈퇴 상태"로 다시 저장합니다 — 그래야
+// 다른 서버 인스턴스가 처리하는 재로그인 요청에서도 30일 복구 판단이 가능합니다.
+export async function withdraw(user: User): Promise<void> {
+  const withdrawnUser: User = { ...user, isWithdrawn: true, withdrawnAt: new Date().toISOString() };
+  const idx = mockUsers.findIndex((u) => u.id === user.id);
+  if (idx > -1) mockUsers[idx] = withdrawnUser;
+  else mockUsers.push(withdrawnUser);
+  setLinkedAccount(user.authProvider, { socialId: user.socialId, user: withdrawnUser });
   clearSession();
 }
 
 export async function updateCheckinSettings(
-  userId: string,
+  user: User,
   input: { checkinIntervalHours: number; guardianContact: string }
 ): Promise<User> {
-  const user = mockUsers.find((u) => u.id === userId);
-  if (!user) throw new Error('사용자를 찾을 수 없습니다.');
-  user.checkinIntervalHours = input.checkinIntervalHours;
-  user.guardianContact = input.guardianContact;
-  return user;
+  const updated: User = { ...user, ...input };
+  const idx = mockUsers.findIndex((u) => u.id === user.id);
+  if (idx > -1) mockUsers[idx] = updated;
+  else mockUsers.push(updated);
+  // 현재 세션 쿠키도 함께 갱신해야, 다른 서버 인스턴스가 처리하는 다음 요청에서도
+  // 바뀐 설정이 유지됩니다 (서버 메모리만 믿으면 안 됩니다).
+  setSessionUser(updated);
+  return updated;
 }
 
-export async function toggleInterest(userId: string, category: string): Promise<User> {
-  const user = mockUsers.find((u) => u.id === userId);
-  if (!user) throw new Error('사용자를 찾을 수 없습니다.');
-  const idx = user.interests.indexOf(category);
-  if (idx > -1) user.interests.splice(idx, 1);
-  else user.interests.push(category);
-  return user;
-}
-
-export async function setInterests(userId: string, interests: string[]): Promise<User> {
-  const user = mockUsers.find((u) => u.id === userId);
-  if (!user) throw new Error('사용자를 찾을 수 없습니다.');
-  user.interests = interests;
-  return user;
+export async function toggleInterest(user: User, category: string): Promise<User> {
+  const interests = user.interests.includes(category)
+    ? user.interests.filter((c) => c !== category)
+    : [...user.interests, category];
+  const updated: User = { ...user, interests };
+  const idx = mockUsers.findIndex((u) => u.id === user.id);
+  if (idx > -1) mockUsers[idx] = updated;
+  else mockUsers.push(updated);
+  setSessionUser(updated);
+  return updated;
 }
 
 // ---------- 커뮤니티 / 게시글 ----------
@@ -331,16 +343,17 @@ export async function getPostById(id: string): Promise<Post | undefined> {
 export async function createPost(input: {
   communityId: string;
   userId: string;
+  authorName: string;
+  authorAvatar: string;
   content: string;
   imageUrl?: string;
 }): Promise<Post> {
-  const author = mockUsers.find((u) => u.id === input.userId);
   const post: Post = {
     id: newId('p'),
     communityId: input.communityId,
     userId: input.userId,
-    authorName: author?.nickname ?? '익명',
-    authorAvatar: author?.avatarUrl ?? '',
+    authorName: input.authorName,
+    authorAvatar: input.authorAvatar,
     content: input.content,
     imageUrl: input.imageUrl,
     createdAt: new Date().toISOString(),
@@ -357,14 +370,14 @@ export async function getCommentsByPost(postId: string): Promise<Comment[]> {
 export async function createComment(input: {
   postId: string;
   userId: string;
+  authorName: string;
   content: string;
 }): Promise<Comment> {
-  const author = mockUsers.find((u) => u.id === input.userId);
   const comment: Comment = {
     id: newId('cm'),
     postId: input.postId,
     userId: input.userId,
-    authorName: author?.nickname ?? '익명',
+    authorName: input.authorName,
     content: input.content,
     createdAt: new Date().toISOString(),
   };
@@ -388,18 +401,18 @@ export async function getMeetupById(id: string): Promise<Meetup | undefined> {
 export async function createMeetup(input: {
   title: string;
   hostId: string;
+  hostName: string;
   region: string;
   date: string;
   capacity: number;
   description: string;
   category: Meetup['category'];
 }): Promise<Meetup> {
-  const host = mockUsers.find((u) => u.id === input.hostId);
   const meetup: Meetup = {
     id: newId('m'),
     title: input.title,
     hostId: input.hostId,
-    hostName: host?.nickname ?? '익명',
+    hostName: input.hostName,
     region: input.region,
     date: input.date,
     capacity: input.capacity,
@@ -432,12 +445,12 @@ export async function getDiscussionById(id: string): Promise<Discussion | undefi
 
 export async function createDiscussion(input: {
   userId: string;
+  authorName: string;
   category: Discussion['category'];
   title: string;
   content: string;
   isAnonymous: boolean;
 }): Promise<Discussion> {
-  const author = mockUsers.find((u) => u.id === input.userId);
   const discussion: Discussion = {
     id: newId('d'),
     category: input.category,
@@ -445,7 +458,7 @@ export async function createDiscussion(input: {
     content: input.content,
     isAnonymous: input.isAnonymous,
     userId: input.userId,
-    authorLabel: input.isAnonymous ? '익명' : author?.nickname ?? '익명',
+    authorLabel: input.isAnonymous ? '익명' : input.authorName,
     createdAt: new Date().toISOString(),
     replyCount: 0,
   };
@@ -462,15 +475,18 @@ export async function getQnaById(id: string): Promise<Qna | undefined> {
   return mockQnaList.find((q) => q.id === id);
 }
 
-export async function createQna(input: { userId: string; question: string }): Promise<Qna> {
-  const author = mockUsers.find((u) => u.id === input.userId);
+export async function createQna(input: {
+  userId: string;
+  authorName: string;
+  question: string;
+}): Promise<Qna> {
   const qna: Qna = {
     id: newId('q'),
     question: input.question,
     answer: null,
     isResolved: false,
     userId: input.userId,
-    authorName: author?.nickname ?? '익명',
+    authorName: input.authorName,
     createdAt: new Date().toISOString(),
   };
   mockQnaList.unshift(qna);
