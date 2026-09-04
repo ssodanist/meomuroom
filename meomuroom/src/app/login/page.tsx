@@ -78,7 +78,7 @@ export default async function LoginPage({
 
         <p className="mt-6 text-center text-base text-ink-700/60">
           카카오·네이버 계정이 없으신가요?{' '}
-          
+          <a
             href={`/login/sms${assisted ? '?assisted=1' : ''}`}
             className="font-bold text-moss-700 underline"
           >
