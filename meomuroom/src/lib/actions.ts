@@ -123,7 +123,7 @@ export async function logoutAction() {
 // 남아있어 같은 방법으로 다시 로그인하면 그대로 복구됩니다.
 export async function withdrawAction() {
   const user = await requireCurrentUser();
-  await withdraw(user.id);
+  await withdraw(user);
   redirect('/login?withdrawn=1');
 }
 
@@ -139,6 +139,8 @@ export async function createPostAction(formData: FormData) {
   const post = await createPost({
     communityId,
     userId: user.id,
+    authorName: user.nickname,
+    authorAvatar: user.avatarUrl,
     content,
     imageUrl: imageUrl || undefined,
   });
@@ -153,7 +155,7 @@ export async function createCommentAction(formData: FormData) {
   const content = String(formData.get('content') ?? '').trim();
   if (!content) return;
 
-  await createComment({ postId, userId: user.id, content });
+  await createComment({ postId, userId: user.id, authorName: user.nickname, content });
   revalidatePath(`/posts/${postId}`);
 }
 
@@ -170,6 +172,7 @@ export async function createMeetupAction(formData: FormData) {
   const meetup = await createMeetup({
     title,
     hostId: user.id,
+    hostName: user.nickname,
     region,
     date,
     capacity,
@@ -198,6 +201,7 @@ export async function createDiscussionAction(formData: FormData) {
 
   const discussion = await createDiscussion({
     userId: user.id,
+    authorName: user.nickname,
     category,
     title,
     content,
@@ -213,7 +217,7 @@ export async function createQnaAction(formData: FormData) {
   const question = String(formData.get('question') ?? '').trim();
   if (!question) return;
 
-  await createQna({ userId: user.id, question });
+  await createQna({ userId: user.id, authorName: user.nickname, question });
   revalidatePath('/qna');
   redirect('/qna');
 }
@@ -236,7 +240,7 @@ export async function toggleInterestAction(formData: FormData) {
   const myOnly = formData.get('myOnly') === '1';
   if (!category) return;
 
-  await toggleInterest(user.id, category);
+  await toggleInterest(user, category);
 
   revalidatePath('/communities');
   revalidatePath('/mypage');
@@ -254,7 +258,7 @@ export async function addCustomCommunityAction(formData: FormData) {
 
   const community = await createCommunity({ category, userId: user.id });
   if (!user.interests.includes(community.category)) {
-    await toggleInterest(user.id, community.category);
+    await toggleInterest(user, community.category);
   }
 
   revalidatePath('/communities');
@@ -267,7 +271,7 @@ export async function updateCheckinAction(formData: FormData) {
   const checkinIntervalHours = Number(formData.get('checkinIntervalHours') ?? 24);
   const guardianContact = String(formData.get('guardianContact') ?? '').trim();
 
-  await updateCheckinSettings(user.id, {
+  await updateCheckinSettings(user, {
     checkinIntervalHours,
     guardianContact,
   });
