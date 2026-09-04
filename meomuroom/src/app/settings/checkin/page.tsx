@@ -2,13 +2,13 @@ import PageHeader from '@/components/PageHeader';
 import Card from '@/components/Card';
 import Button from '@/components/Button';
 import { Label, Input, Select } from '@/components/FormField';
-import { getCurrentUser } from '@/lib/data';
+import { requireCurrentUser } from '@/lib/data';
 import { updateCheckinAction } from '@/lib/actions';
 
 const intervalOptions = [12, 24, 48, 72];
 
 export default async function CheckinSettingsPage() {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUser();
 
   return (
     <div>

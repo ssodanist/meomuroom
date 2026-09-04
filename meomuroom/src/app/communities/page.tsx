@@ -5,7 +5,7 @@ import Badge from '@/components/Badge';
 import Button from '@/components/Button';
 import CoverTile from '@/components/CoverTile';
 import { Input } from '@/components/FormField';
-import { getCommunities, getCurrentUser, getPopularCategories } from '@/lib/data';
+import { getCommunities, getPopularCategories, requireCurrentUser } from '@/lib/data';
 import { addCustomCommunityAction, toggleInterestAction } from '@/lib/actions';
 
 export default async function CommunitiesPage({
@@ -15,7 +15,7 @@ export default async function CommunitiesPage({
 }) {
   const query = searchParams.query ?? '';
   const myOnly = searchParams.myOnly === '1';
-  const user = await getCurrentUser();
+  const user = await requireCurrentUser();
   const popularCategories = await getPopularCategories();
   const communities = await getCommunities({
     query,

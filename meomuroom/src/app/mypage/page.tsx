@@ -3,11 +3,12 @@ import PageHeader from '@/components/PageHeader';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import CoverTile from '@/components/CoverTile';
-import { getCommunities, getCurrentUser } from '@/lib/data';
+import { getCommunities, requireCurrentUser } from '@/lib/data';
+import { logoutAction } from '@/lib/actions';
 import { meetups } from '@/lib/mockData';
 
 export default async function MyPage() {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUser();
   const myCommunities = await getCommunities({
     myOnly: true,
     interests: user.interests,
@@ -18,18 +19,32 @@ export default async function MyPage() {
     <div>
       <PageHeader title="마이페이지" />
       <div className="p-5">
-        <div className="flex items-center gap-4">
-          <img
-            src={user.avatarUrl}
-            alt=""
-            className="h-20 w-20 rounded-full object-cover"
-          />
-          <div>
-            <p className="text-2xl font-extrabold text-ink-900">
-              {user.nickname}
-            </p>
-            <p className="text-base text-ink-700/60">{user.region}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-4">
+            <img
+              src={user.avatarUrl}
+              alt=""
+              className="h-20 w-20 rounded-full object-cover"
+            />
+            <div>
+              <p className="text-2xl font-extrabold text-ink-900">
+                {user.nickname}
+              </p>
+              <p className="text-base text-ink-700/60">
+                {user.region} · {user.ageGroup}
+                {user.genderDisplay !== '비공개' ? ` · ${user.genderDisplay}` : ''}
+              </p>
+            </div>
           </div>
+          {/* 아이디어8: 숨겨진 메뉴 안이 아니라 여기, 눈에 바로 띄는 자리에 둡니다. */}
+          <form action={logoutAction}>
+            <button
+              type="submit"
+              className="min-h-touch rounded-xl border-2 border-moss-200 bg-white px-4 text-base font-bold text-ink-700"
+            >
+              로그아웃
+            </button>
+          </form>
         </div>
 
         <Card className="mt-5 flex items-center justify-between">
@@ -122,6 +137,12 @@ export default async function MyPage() {
               </Link>
             ))
           )}
+        </div>
+
+        <div className="mt-10 text-center">
+          <Link href="/settings/withdraw" className="text-base text-ink-700/40">
+            회원 탈퇴
+          </Link>
         </div>
       </div>
     </div>

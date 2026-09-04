@@ -1,11 +1,11 @@
 import Link from 'next/link';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
-import { getCurrentUser, getMeetups } from '@/lib/data';
+import { getMeetups, requireCurrentUser } from '@/lib/data';
 import { communities, posts } from '@/lib/mockData';
 
 export default async function HomePage() {
-  const user = await getCurrentUser();
+  const user = await requireCurrentUser();
   const meetups = (await getMeetups()).slice(0, 2);
   const recentPosts = [...posts]
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
