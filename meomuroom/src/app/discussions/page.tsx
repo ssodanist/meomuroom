@@ -5,6 +5,10 @@ import Badge from '@/components/Badge';
 import Button from '@/components/Button';
 import { getDiscussions } from '@/lib/data';
 
+// 회원이 새 글을 쓰면 바로 반영돼야 하므로, 빌드 시점에 미리 굳혀두지 않고
+// 요청마다 새로 DB를 조회합니다.
+export const dynamic = 'force-dynamic';
+
 export default async function DiscussionsPage() {
   const discussions = await getDiscussions();
 

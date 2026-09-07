@@ -3,9 +3,8 @@ import PageHeader from '@/components/PageHeader';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import CoverTile from '@/components/CoverTile';
-import { getCommunities, requireCurrentUser } from '@/lib/data';
+import { getCommunities, getMeetups, requireCurrentUser } from '@/lib/data';
 import { logoutAction } from '@/lib/actions';
-import { meetups } from '@/lib/mockData';
 
 export default async function MyPage() {
   const user = await requireCurrentUser();
@@ -13,7 +12,8 @@ export default async function MyPage() {
     myOnly: true,
     interests: user.interests,
   });
-  const myMeetups = meetups.filter((m) => m.hostId === user.id);
+  const allMeetups = await getMeetups();
+  const myMeetups = allMeetups.filter((m) => m.hostId === user.id);
 
   return (
     <div>

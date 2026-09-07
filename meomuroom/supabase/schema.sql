@@ -35,6 +35,8 @@ create table if not exists public.users (
   created_at timestamptz not null default now()
 );
 
+alter table public.users alter column guardian_contact set default '';
+
 -- 탈퇴 후 30일 이내 같은 소셜 계정(social_id)으로 재로그인하면 계정을 그대로
 -- 복구합니다 (완전 삭제가 아니라 is_withdrawn 플래그로만 표시했기 때문에 가능).
 -- 30일이 지난 뒤에는 별도의 정리(cron) 작업으로 완전 삭제하거나 비식별화하는 것을
@@ -46,13 +48,14 @@ create table if not exists public.users (
 create table if not exists public.communities (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  category text not null,
+  category text not null unique, -- 카테고리 이름으로 중복 생성을 막습니다 (seed.sql의 upsert 기준).
   description text,
+  -- 화면에 보여주는 '회원 수'입니다. 실제 가입자 수를 세는 대신, 초기 시드 데이터의
+  -- 규모감을 그대로 유지하기 위해 숫자를 직접 저장해두는 방식을 택했습니다
+  -- (community_members 테이블은 나중에 실제 가입 기능을 붙일 때를 위해 남겨둡니다).
+  member_count integer not null default 0,
   created_at timestamptz not null default now()
 );
-
--- 참고: 커뮤니티 화면의 '회원 수'는 이 테이블의 행 수(count)로 계산합니다.
--- (목업 데이터에서는 편의상 Community.memberCount 필드에 숫자를 직접 넣어뒀습니다.)
 create table if not exists public.community_members (
   user_id uuid references public.users(id) on delete cascade,
   community_id uuid references public.communities(id) on delete cascade,
@@ -61,12 +64,18 @@ create table if not exists public.community_members (
 );
 
 -- 게시글 / 댓글
+-- author_name/author_avatar/comment_count는 users 테이블과 매번 join하지 않도록
+-- 작성 시점의 별명·사진을 그대로 복사해두는 값입니다(작성 후 별명을 바꿔도
+-- 이미 쓴 글의 표시 이름은 바뀌지 않습니다 — 흔한 커뮤니티 서비스와 동일한 방식).
 create table if not exists public.posts (
   id uuid primary key default gen_random_uuid(),
   community_id uuid references public.communities(id) on delete cascade,
   user_id uuid references public.users(id) on delete set null,
+  author_name text not null,
+  author_avatar text,
   content text not null,
   image_url text,
+  comment_count integer not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -74,6 +83,7 @@ create table if not exists public.comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid references public.posts(id) on delete cascade,
   user_id uuid references public.users(id) on delete set null,
+  author_name text not null,
   content text not null,
   created_at timestamptz not null default now()
 );
@@ -83,9 +93,11 @@ create table if not exists public.meetups (
   id uuid primary key default gen_random_uuid(),
   title text not null,
   host_id uuid references public.users(id) on delete set null,
+  host_name text not null,
   region text not null,
   date timestamptz not null,
   capacity integer not null default 10,
+  participant_count integer not null default 1,
   description text,
   category text not null check (category in ('등산','여행','식사','클래스','동창회','스터디')),
   created_at timestamptz not null default now()
@@ -107,6 +119,8 @@ create table if not exists public.discussions (
   content text not null,
   is_anonymous boolean not null default false,
   user_id uuid references public.users(id) on delete set null,
+  author_label text not null, -- 익명 글이면 '익명', 아니면 작성 시점의 별명.
+  reply_count integer not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -117,6 +131,7 @@ create table if not exists public.qna (
   answer text,
   is_resolved boolean not null default false,
   user_id uuid references public.users(id) on delete set null,
+  author_name text not null,
   created_at timestamptz not null default now()
 );
 

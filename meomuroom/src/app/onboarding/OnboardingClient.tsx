@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Button from '@/components/Button';
 import { Label, Input } from '@/components/FormField';
-import { POPULAR_CATEGORIES } from '@/lib/mockData';
+import { POPULAR_CATEGORIES } from '@/lib/categories';
 import { completeSignupAction } from '@/lib/actions';
 import type { GenderDisplay } from '@/lib/types';
 

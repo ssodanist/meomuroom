@@ -2,8 +2,14 @@ import Link from 'next/link';
 import Card from '@/components/Card';
 import Badge from '@/components/Badge';
 import CoverTile from '@/components/CoverTile';
-import { getDiscussions, getMeetups, requireCurrentUser } from '@/lib/data';
-import { POPULAR_CATEGORIES, communities, posts } from '@/lib/mockData';
+import {
+  getCommunities,
+  getDiscussions,
+  getMeetups,
+  getRecentPosts,
+  requireCurrentUser,
+} from '@/lib/data';
+import { POPULAR_CATEGORIES } from '@/lib/categories';
 
 const QUICK_LINKS = [
   { href: '/communities', icon: '🌿', label: '커뮤니티 찾기' },
@@ -14,11 +20,14 @@ const QUICK_LINKS = [
 
 export default async function HomePage() {
   const user = await requireCurrentUser();
-  const meetups = (await getMeetups()).slice(0, 3);
-  const recentPosts = [...posts]
-    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-    .slice(0, 3);
-  const hotDiscussions = (await getDiscussions())
+  const [meetups, communities, recentPosts, allDiscussions] = await Promise.all([
+    getMeetups(),
+    getCommunities(),
+    getRecentPosts(3),
+    getDiscussions(),
+  ]);
+  const upcomingMeetups = meetups.slice(0, 3);
+  const hotDiscussions = allDiscussions
     .slice()
     .sort((a, b) => b.replyCount - a.replyCount)
     .slice(0, 2);
@@ -118,28 +127,34 @@ export default async function HomePage() {
             더보기
           </Link>
         </div>
-        <div className="mt-3 flex flex-col gap-3">
-          {meetups.map((m) => (
-            <Link key={m.id} href={`/meetups/${m.id}`}>
-              <Card className="flex items-center justify-between">
-                <div>
-                  <Badge>{m.category}</Badge>
-                  <p className="mt-2 text-lg font-bold text-ink-900">
-                    {m.title}
-                  </p>
-                  <p className="mt-1 text-base text-ink-700/70">
-                    {new Date(m.date).toLocaleDateString('ko-KR', {
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                    · {m.region} · 참가 {m.participantCount}/{m.capacity}명
-                  </p>
-                </div>
-                <span className="text-2xl">→</span>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        {upcomingMeetups.length === 0 ? (
+          <p className="mt-3 text-base text-ink-700/50">
+            아직 등록된 모임이 없어요. 첫 모임을 만들어보세요.
+          </p>
+        ) : (
+          <div className="mt-3 flex flex-col gap-3">
+            {upcomingMeetups.map((m) => (
+              <Link key={m.id} href={`/meetups/${m.id}`}>
+                <Card className="flex items-center justify-between">
+                  <div>
+                    <Badge>{m.category}</Badge>
+                    <p className="mt-2 text-lg font-bold text-ink-900">
+                      {m.title}
+                    </p>
+                    <p className="mt-1 text-base text-ink-700/70">
+                      {new Date(m.date).toLocaleDateString('ko-KR', {
+                        month: 'long',
+                        day: 'numeric',
+                      })}
+                      · {m.region} · 참가 {m.participantCount}/{m.capacity}명
+                    </p>
+                  </div>
+                  <span className="text-2xl">→</span>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="px-5 pt-6">
@@ -149,33 +164,39 @@ export default async function HomePage() {
             더보기
           </Link>
         </div>
-        <div className="mt-3 flex flex-col gap-3">
-          {recentPosts.map((post) => {
-            const community = communities.find((c) => c.id === post.communityId);
-            return (
-              <Link key={post.id} href={`/posts/${post.id}`}>
-                <Card>
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={post.authorAvatar}
-                      alt=""
-                      className="h-10 w-10 rounded-full object-cover"
-                    />
-                    <div>
-                      <p className="font-bold text-ink-900">{post.authorName}</p>
-                      <p className="text-sm text-ink-700/60">
-                        {community?.name}
-                      </p>
+        {recentPosts.length === 0 ? (
+          <p className="mt-3 text-base text-ink-700/50">
+            아직 올라온 글이 없어요. 관심 있는 커뮤니티에 첫 글을 남겨보세요.
+          </p>
+        ) : (
+          <div className="mt-3 flex flex-col gap-3">
+            {recentPosts.map((post) => {
+              const community = communities.find((c) => c.id === post.communityId);
+              return (
+                <Link key={post.id} href={`/posts/${post.id}`}>
+                  <Card>
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={post.authorAvatar}
+                        alt=""
+                        className="h-10 w-10 rounded-full object-cover"
+                      />
+                      <div>
+                        <p className="font-bold text-ink-900">{post.authorName}</p>
+                        <p className="text-sm text-ink-700/60">
+                          {community?.name}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <p className="mt-3 line-clamp-2 text-lg text-ink-900">
-                    {post.content}
-                  </p>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+                    <p className="mt-3 line-clamp-2 text-lg text-ink-900">
+                      {post.content}
+                    </p>
+                  </Card>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       {hotDiscussions.length > 0 ? (

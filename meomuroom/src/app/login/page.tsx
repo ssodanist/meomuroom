@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 import CoverTile from '@/components/CoverTile';
 import { getCurrentUser } from '@/lib/data';
 import { startLoginAction } from '@/lib/actions';
-import { ALL_CATEGORIES, POPULAR_CATEGORIES, communities } from '@/lib/mockData';
+import { ALL_CATEGORIES, POPULAR_CATEGORIES } from '@/lib/categories';
 
 const FEATURES = [
   { icon: '🌿', title: '관심사 커뮤니티', desc: `${ALL_CATEGORIES.length}개가 넘는\n동네 취미 모임` },
@@ -20,9 +20,7 @@ export default async function LoginPage({
   if (existing) redirect('/');
 
   const assisted = searchParams.assisted === '1';
-  const spotlightCommunities = POPULAR_CATEGORIES.slice(0, 10)
-    .map((cat) => communities.find((c) => c.category === cat))
-    .filter((c): c is NonNullable<typeof c> => Boolean(c));
+  const spotlightCategories = POPULAR_CATEGORIES.slice(0, 10);
 
   return (
     <div className="flex min-h-screen flex-col px-6 py-10">
@@ -115,15 +113,15 @@ export default async function LoginPage({
           지금 활발한 인기 커뮤니티
         </p>
         <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
-          {spotlightCommunities.map((c) => (
-            <div key={c.id} className="flex w-20 shrink-0 flex-col items-center gap-1">
+          {spotlightCategories.map((category) => (
+            <div key={category} className="flex w-20 shrink-0 flex-col items-center gap-1">
               <CoverTile
-                category={c.category}
+                category={category}
                 className="h-16 w-16 rounded-2xl"
                 iconClassName="text-2xl"
               />
               <span className="line-clamp-1 text-center text-sm font-semibold text-ink-900">
-                {c.category}
+                {category}
               </span>
             </div>
           ))}
