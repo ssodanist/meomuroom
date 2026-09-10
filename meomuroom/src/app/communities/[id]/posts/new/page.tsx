@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import PageHeader from '@/components/PageHeader';
 import Button from '@/components/Button';
-import { Label, Textarea, Input } from '@/components/FormField';
+import { Label, Textarea, FileInput } from '@/components/FormField';
 import { getCommunityById } from '@/lib/data';
 import { createPostAction } from '@/lib/actions';
 
@@ -28,12 +28,8 @@ export default async function NewPostPage({
           />
         </div>
         <div>
-          <Label>사진 주소 (선택)</Label>
-          <Input
-            type="url"
-            name="imageUrl"
-            placeholder="https:// 로 시작하는 사진 주소"
-          />
+          <Label>사진 (선택, 최대 5MB)</Label>
+          <FileInput name="image" accept="image/jpeg,image/png,image/webp,image/gif" />
         </div>
         <Button type="submit" fullWidth>
           올리기
