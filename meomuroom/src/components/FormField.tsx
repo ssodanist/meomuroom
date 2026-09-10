@@ -30,6 +30,18 @@ export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   );
 }
 
+export function FileInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      type="file"
+      {...props}
+      className={`block w-full text-lg text-ink-700/70 file:mr-4 file:min-h-touch file:rounded-xl file:border-0 file:bg-moss-100 file:px-4 file:text-lg file:font-bold file:text-moss-800 ${
+        props.className ?? ''
+      }`}
+    />
+  );
+}
+
 export function Select({
   children,
   ...props
