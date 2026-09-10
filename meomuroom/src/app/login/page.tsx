@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 import CoverTile from '@/components/CoverTile';
 import { getCurrentUser } from '@/lib/data';
-import { startLoginAction } from '@/lib/actions';
 import { ALL_CATEGORIES, POPULAR_CATEGORIES } from '@/lib/categories';
 
 const FEATURES = [
@@ -14,7 +13,7 @@ const FEATURES = [
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { assisted?: string; restored?: string; withdrawn?: string };
+  searchParams: { assisted?: string; restored?: string; withdrawn?: string; error?: string };
 }) {
   const existing = await getCurrentUser();
   if (existing) redirect('/');
@@ -50,33 +49,36 @@ export default async function LoginPage({
           </div>
         ) : null}
 
-        <div className="mt-10 flex flex-col gap-4">
-          <form action={startLoginAction}>
-            <input type="hidden" name="provider" value="kakao" />
-            {assisted ? <input type="hidden" name="assisted" value="1" /> : null}
-            <button
-              type="submit"
-              className="min-h-touch flex w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-lg font-bold text-[#3C1E1E]"
-            >
-              <span aria-hidden>💬</span> 카카오로 시작하기
-            </button>
-          </form>
+        {searchParams.error === 'oauth' ? (
+          <div className="mt-6 rounded-xl bg-clay-100 p-4 text-lg text-ink-900">
+            로그인 중 문제가 생겼어요. 잠시 후 다시 시도해주세요.
+          </div>
+        ) : null}
+        {searchParams.error === 'config' ? (
+          <div className="mt-6 rounded-xl bg-clay-100 p-4 text-lg text-ink-900">
+            아직 이 로그인 방법을 준비 중이에요. 다른 방법으로 시작해주세요.
+          </div>
+        ) : null}
 
-          <form action={startLoginAction}>
-            <input type="hidden" name="provider" value="naver" />
-            {assisted ? <input type="hidden" name="assisted" value="1" /> : null}
-            <button
-              type="submit"
-              className="min-h-touch flex w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-lg font-bold text-white"
-            >
-              <span aria-hidden>N</span> 네이버로 시작하기
-            </button>
-          </form>
+        <div className="mt-10 flex flex-col gap-4">
+          
+            href={`/api/auth/kakao/start?assisted=${assisted ? '1' : '0'}`}
+            className="min-h-touch flex w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-lg font-bold text-[#3C1E1E]"
+          >
+            <span aria-hidden>💬</span> 카카오로 시작하기
+          </a>
+
+          
+            href={`/api/auth/naver/start?assisted=${assisted ? '1' : '0'}`}
+            className="min-h-touch flex w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-lg font-bold text-white"
+          >
+            <span aria-hidden>N</span> 네이버로 시작하기
+          </a>
         </div>
 
         <p className="mt-6 text-center text-base text-ink-700/60">
           카카오·네이버 계정이 없으신가요?{' '}
-          <a
+          
             href={`/login/sms${assisted ? '?assisted=1' : ''}`}
             className="font-bold text-moss-700 underline"
           >
