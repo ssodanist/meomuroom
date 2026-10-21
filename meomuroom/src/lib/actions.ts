@@ -123,4 +123,152 @@ export async function createPostAction(formData: FormData) {
   // 사진은 이제 URL을 직접 입력받지 않고, 고른 파일을 서버에서 바로 Supabase
   // Storage에 올려 그 공개 URL을 씁니다. 사진을 안 골랐으면 브라우저가 크기 0인
   // 빈 File을 보내므로 size로 구분합니다.
-  let imageUrl: string
+  let imageUrl: string | undefined;
+  const imageFile = formData.get('image');
+  if (imageFile instanceof File && imageFile.size > 0) {
+    imageUrl = await uploadPostImage(imageFile, `posts/${communityId}`);
+  }
+
+  const post = await createPost({
+    communityId,
+    userId: user.id,
+    authorName: user.nickname,
+    authorAvatar: user.avatarUrl,
+    content,
+    imageUrl,
+  });
+
+  revalidatePath(`/communities/${communityId}`);
+  redirect(`/posts/${post.id}`);
+}
+
+export async function createCommentAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const postId = String(formData.get('postId'));
+  const content = String(formData.get('content') ?? '').trim();
+  if (!content) return;
+
+  await createComment({ postId, userId: user.id, authorName: user.nickname, content });
+  revalidatePath(`/posts/${postId}`);
+}
+
+export async function createMeetupAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const title = String(formData.get('title') ?? '').trim();
+  const region = String(formData.get('region') ?? '').trim();
+  const date = String(formData.get('date') ?? '');
+  const capacity = Number(formData.get('capacity') ?? 10);
+  const description = String(formData.get('description') ?? '').trim();
+  const category = String(formData.get('category') ?? '식사') as Meetup['category'];
+  if (!title || !region || !date) return;
+
+  const meetup = await createMeetup({
+    title,
+    hostId: user.id,
+    hostName: user.nickname,
+    region,
+    date,
+    capacity,
+    description,
+    category,
+  });
+
+  revalidatePath('/meetups');
+  redirect(`/meetups/${meetup.id}`);
+}
+
+export async function joinMeetupAction(formData: FormData) {
+  await requireCurrentUser();
+  const meetupId = String(formData.get('meetupId'));
+  await joinMeetup(meetupId);
+  revalidatePath(`/meetups/${meetupId}`);
+}
+
+export async function createDiscussionAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const title = String(formData.get('title') ?? '').trim();
+  const content = String(formData.get('content') ?? '').trim();
+  const category = String(formData.get('category') ?? '일상') as Discussion['category'];
+  const isAnonymous = formData.get('isAnonymous') === 'on';
+  if (!title || !content) return;
+
+  const discussion = await createDiscussion({
+    userId: user.id,
+    authorName: user.nickname,
+    category,
+    title,
+    content,
+    isAnonymous,
+  });
+
+  revalidatePath('/discussions');
+  redirect(`/discussions/${discussion.id}`);
+}
+
+export async function createQnaAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const question = String(formData.get('question') ?? '').trim();
+  if (!question) return;
+
+  await createQna({ userId: user.id, authorName: user.nickname, question });
+  revalidatePath('/qna');
+  redirect('/qna');
+}
+
+export async function answerQnaAction(formData: FormData) {
+  await requireCurrentUser();
+  const id = String(formData.get('id'));
+  const answer = String(formData.get('answer') ?? '').trim();
+  if (!answer) return;
+
+  await answerQna(id, answer);
+  revalidatePath(`/qna/${id}`);
+}
+
+// 인기 주제 칩을 누르면 이 액션으로 관심사에 등록/해제합니다.
+export async function toggleInterestAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const category = String(formData.get('category') ?? '').trim();
+  const query = String(formData.get('query') ?? '');
+  const myOnly = formData.get('myOnly') === '1';
+  if (!category) return;
+
+  await toggleInterest(user, category);
+
+  revalidatePath('/communities');
+  revalidatePath('/mypage');
+  const params = new URLSearchParams();
+  if (query) params.set('query', query);
+  if (myOnly) params.set('myOnly', '1');
+  redirect(`/communities${params.toString() ? `?${params.toString()}` : ''}`);
+}
+
+// 검색해도 원하는 주제가 없을 때, 회원이 직접 새 주제를 추가합니다.
+export async function addCustomCommunityAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const category = String(formData.get('category') ?? '').trim();
+  if (!category) return;
+
+  const community = await createCommunity({ category, userId: user.id });
+  if (!user.interests.includes(community.category)) {
+    await toggleInterest(user, community.category);
+  }
+
+  revalidatePath('/communities');
+  revalidatePath('/mypage');
+  redirect(`/communities?query=${encodeURIComponent(community.category)}`);
+}
+
+export async function updateCheckinAction(formData: FormData) {
+  const user = await requireCurrentUser();
+  const checkinIntervalHours = Number(formData.get('checkinIntervalHours') ?? 24);
+  const guardianContact = String(formData.get('guardianContact') ?? '').trim();
+
+  await updateCheckinSettings(user, {
+    checkinIntervalHours,
+    guardianContact,
+  });
+
+  revalidatePath('/settings/checkin');
+  revalidatePath('/mypage');
+}

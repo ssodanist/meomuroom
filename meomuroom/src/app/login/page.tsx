@@ -61,14 +61,14 @@ export default async function LoginPage({
         ) : null}
 
         <div className="mt-10 flex flex-col gap-4">
-          
+          <a
             href={`/api/auth/kakao/start?assisted=${assisted ? '1' : '0'}`}
             className="min-h-touch flex w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-lg font-bold text-[#3C1E1E]"
           >
             <span aria-hidden>💬</span> 카카오로 시작하기
           </a>
 
-          
+          <a
             href={`/api/auth/naver/start?assisted=${assisted ? '1' : '0'}`}
             className="min-h-touch flex w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-lg font-bold text-white"
           >
@@ -78,7 +78,7 @@ export default async function LoginPage({
 
         <p className="mt-6 text-center text-base text-ink-700/60">
           카카오·네이버 계정이 없으신가요?{' '}
-          
+          <a
             href={`/login/sms${assisted ? '?assisted=1' : ''}`}
             className="font-bold text-moss-700 underline"
           >

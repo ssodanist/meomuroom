@@ -5,12 +5,12 @@
 //
 //   mm_session         로그인 세션 — 로그인한 회원의 id(uuid)만 저장. 아이디어14:
 //                       기본 180일 유지.
-//   mm_link_<provider>  "이 브라우저 = 이 소셜 계정" 연결. 실제 카카오/네이버
-//                       로그인이 아직 아니라서, 이 브라우저가 이전에 만든 가짜
-//                       socialId를 기억해뒀다가 다음에 같은 버튼을 눌렀을 때
-//                       같은 계정으로 로그인시키는 용도입니다. 로그아웃해도 유지됩니다.
 //   mm_draft_signup     회원가입 진행 중 임시 정보 (본인인증~프로필 입력 사이,
 //                       아직 DB에 사용자가 만들어지기 전이라 쿠키에만 있습니다).
+//
+// 카카오·네이버 로그인은 이제 실제 OAuth이므로(lib/oauth.ts, app/api/auth/*),
+// "이 브라우저 = 이 소셜 계정"을 흉내내던 mm_link_<provider> 쿠키는 더 이상
+// 필요하지 않습니다 — provider가 항상 같은 고유 계정 ID를 내려주기 때문입니다.
 //
 // 회원 정보 자체가 이제 Supabase DB에 있기 때문에, 서버리스 인스턴스가 요청마다
 // 바뀌어도 문제가 없습니다 — 매 요청마다 이 쿠키의 id로 DB를 조회하면 항상 같은
@@ -31,10 +31,6 @@ export interface SignupDraft {
   verifiedBirthYear?: number;
 }
 
-function linkCookieName(provider: AuthProvider) {
-  return `mm_link_${provider}`;
-}
-
 // ---- 세션 (로그인 상태) ----
 
 export function getSessionUserId(): string | null {
@@ -52,23 +48,6 @@ export function setSessionUserId(userId: string) {
 
 export function clearSession() {
   cookies().delete(SESSION_COOKIE);
-}
-
-// ---- 소셜 연결 (이 브라우저가 어떤 소셜 계정과 연결돼 있는지) ----
-// 로그아웃해도 지워지지 않습니다 — 실제 카카오/네이버 로그인이라면 다시 눌렀을 때
-// 같은 계정으로 인식되는 것과 같은 동작입니다.
-
-export function getLinkedSocialId(provider: AuthProvider): string | null {
-  return cookies().get(linkCookieName(provider))?.value ?? null;
-}
-
-export function setLinkedSocialId(provider: AuthProvider, socialId: string) {
-  cookies().set(linkCookieName(provider), socialId, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 365 * 5,
-  });
 }
 
 // ---- 회원가입 진행 상태 (본인인증 → 프로필 입력 사이 임시 저장) ----

@@ -4,21 +4,19 @@
 // 호출되므로 lib/supabaseAdmin.ts 의 Service Role 클라이언트를 사용합니다
 // (RLS 없이 서버가 직접 접근 — 자세한 이유는 supabaseAdmin.ts 주석 참고).
 //
-// 로그인 자체는 아직 실제 카카오/네이버 OAuth가 아니라 lib/session.ts 의
-// 쿠키로 흉내내고 있지만, 회원 프로필/글/모임/토론 등 모든 콘텐츠는 이제 이
-// 파일을 통해 Supabase에 영구 저장됩니다 — 배포/서버 재시작과 무관하게
-// 데이터가 계속 남습니다.
+// 회원 프로필/글/모임/토론/Q&A 등 모든 콘텐츠와 로그인(카카오/네이버 실제 OAuth,
+// src/lib/oauth.ts + src/app/api/auth/**)이 이제 이 파일을 통해 Supabase에
+// 영구 저장됩니다 — 배포/서버 재시작과 무관하게 데이터가 계속 남습니다.
 
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { redirect } from 'next/navigation';
 import { POPULAR_CATEGORIES as STATIC_POPULAR_CATEGORIES } from './categories';
 import { getSupabaseAdmin } from './supabaseAdmin';
 import {
   clearSession,
   clearSignupDraft,
-  getLinkedSocialId,
   getSessionUserId,
   getSignupDraft,
-  setLinkedSocialId,
   setSessionUserId,
   setSignupDraft,
 } from './session';
@@ -42,10 +40,6 @@ const WITHDRAW_RESTORE_WINDOW_DAYS = 30;
 // 접속할 때마다 매번 안부 신호(last_active_at)를 DB에 쓰지 않도록, 이 시간
 // 이상 지났을 때만 갱신합니다 (불필요한 쓰기 요청을 줄이기 위함).
 const LAST_ACTIVE_REFRESH_MS = 5 * 60 * 1000;
-
-function newSocialId(prefix: string) {
-  return `${prefix}-${crypto.randomUUID()}`;
-}
 
 // 본인인증에서 확인한 생년으로 연배 그룹을 계산합니다. 화면에는 항상 이 결과값만
 // 보여주고, 정확한 나이나 생년월일은 노출하지 않습니다.
@@ -234,19 +228,32 @@ async function resolveOrStartSignup(
       const withdrawnAtMs = existing.withdrawn_at ? new Date(existing.withdrawn_at).getTime() : 0;
       const daysSinceWithdraw = (Date.now() - withdrawnAtMs) / (1000 * 60 * 60 * 24);
       if (daysSinceWithdraw <= WITHDRAW_RESTORE_WINDOW_DAYS) {
-        // 아이디어9·10: 탈퇴 30일 이내 재로그인 → 그대로 복구
+        // 아이디어9·10: 탈퇴 30일 이내 재로그인 → 그대로 복구 (관심사도 그대로
+        // 있었으므로 실제 커뮤니티 가입 이력도 다시 살립니다).
         await supabase
           .from('users')
           .update({ is_withdrawn: false, withdrawn_at: null })
           .eq('id', existing.id);
+        await syncCommunityMembership(supabase, existing.id, existing.interests ?? []);
         setSessionUserId(existing.id);
         return { kind: 'logged_in', restored: true };
       }
       // 30일이 지나 완전히 지워진 것으로 취급 — 이 소셜 계정의 예전 데이터를
       // 정리(삭제)하고 같은 socialId로 새로 가입할 수 있게 합니다
       // (social_id는 컬럼에 유니크 제약이 있어, 지우지 않으면 재가입이 막힙니다).
+      // community_members는 users FK에 on delete cascade가 걸려 있어 함께
+      // 지워지지만, 그 커뮤니티들의 회원수는 따로 다시 계산해줘야 합니다.
+      const staleCommunityIds = new Set<string>();
+      if ((existing.interests as string[] | null)?.length) {
+        const { data: matched } = await supabase
+          .from('communities')
+          .select('id')
+          .in('category', existing.interests as string[]);
+        (matched ?? []).forEach((r) => staleCommunityIds.add(r.id as string));
+      }
       await supabase.from('users').delete().eq('id', existing.id);
       await supabase.auth.admin.deleteUser(existing.id).catch(() => {});
+      await Promise.all([...staleCommunityIds].map((id) => refreshMemberCount(supabase, id)));
     } else {
       setSessionUserId(existing.id);
       return { kind: 'logged_in', restored: false };
@@ -258,14 +265,15 @@ async function resolveOrStartSignup(
   return { kind: 'needs_signup' };
 }
 
-// 아이디어1: 카카오/네이버 "원버튼 로그인". 이 브라우저가 해당 provider 계정과
-// 연결된 적이 있으면(mm_link_* 쿠키) 바로 로그인하고, 처음이면 회원가입을 시작합니다.
-// 실제 서비스에서는 이 socialId가 카카오/네이버가 내려주는 고유 계정 ID로 바뀝니다.
-export async function startLogin(
-  provider: 'kakao' | 'naver',
+// 아이디어1: 카카오/네이버 실제 OAuth 로그인. /api/auth/{provider}/callback 라우트가
+// 카카오·네이버로부터 실제 프로필을 받아온 뒤 이 함수를 호출합니다. socialId는
+// 항상 그 provider가 내려주는 고유 계정 ID(예: kakao-123456)이므로, 같은 사람이
+// 언제 어느 기기로 로그인해도 항상 같은 회원으로 인식됩니다.
+export async function loginWithSocialId(
+  provider: AuthProvider,
+  socialId: string,
   assisted: boolean
 ): Promise<LoginOutcome> {
-  const socialId = getLinkedSocialId(provider) ?? newSocialId(provider);
   return resolveOrStartSignup(provider, socialId, assisted);
 }
 
@@ -367,7 +375,9 @@ export async function completeSignup(input: {
     throw new Error('회원 정보 저장에 실패했습니다: ' + (insertError?.message ?? '알 수 없는 오류'));
   }
 
-  setLinkedSocialId(draft.provider, draft.socialId);
+  // 가입할 때 고른 관심사를 실제 커뮤니티 가입 이력(community_members)에도 반영합니다.
+  await syncCommunityMembership(supabase, id, input.interests);
+
   setSessionUserId(id);
   clearSignupDraft();
   return mapUserRow(inserted);
@@ -386,6 +396,10 @@ export async function withdraw(user: User): Promise<void> {
     .from('users')
     .update({ is_withdrawn: true, withdrawn_at: new Date().toISOString() })
     .eq('id', user.id);
+  // 관심사(users.interests)는 30일 복구를 위해 그대로 두되, 실제 가입 이력만
+  // 지워서 탈퇴 기간에는 회원수 집계에서 빠지도록 합니다. 30일 내 재로그인하면
+  // resolveOrStartSignup이 관심사를 보고 다시 살려냅니다.
+  await syncCommunityMembership(supabase, user.id, []);
   clearSession();
 }
 
@@ -407,6 +421,66 @@ export async function updateCheckinSettings(
   return mapUserRow(data);
 }
 
+// 커뮤니티 실제 회원수 = seed_member_count(원래 시드 데이터의 기본 수치) +
+// community_members 테이블에 실제로 쌓인 가입 이력. 가입/탈퇴가 있을 때마다
+// 이 함수로 다시 계산해서 communities.member_count에 반영합니다 — 화면에서는
+// 여전히 member_count 컬럼 하나만 읽으면 되도록(빠른 목록 조회) 하면서도, 그
+// 값의 근거는 항상 실제 가입 이력 테이블입니다.
+async function refreshMemberCount(supabase: SupabaseClient, communityId: string): Promise<void> {
+  const [{ count }, { data: community }] = await Promise.all([
+    supabase
+      .from('community_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('community_id', communityId),
+    supabase.from('communities').select('seed_member_count').eq('id', communityId).maybeSingle(),
+  ]);
+  const seed = community?.seed_member_count ?? 0;
+  await supabase
+    .from('communities')
+    .update({ member_count: seed + (count ?? 0) })
+    .eq('id', communityId);
+}
+
+// 회원의 관심사 배열(users.interests)과 실제 가입 이력 테이블(community_members)을
+// 맞춥니다. 카테고리는 communities.category와 유니크하게 매칭되므로, "관심사 등록"이
+// 곧 "그 커뮤니티 가입"입니다. 매번 현재 상태와 목표 상태를 비교해 차이만
+// 추가/삭제하고, 바뀐 커뮤니티만 회원수를 다시 계산합니다.
+async function syncCommunityMembership(
+  supabase: SupabaseClient,
+  userId: string,
+  interests: string[]
+): Promise<void> {
+  const { data: currentRows } = await supabase
+    .from('community_members')
+    .select('community_id')
+    .eq('user_id', userId);
+  const currentIds = new Set((currentRows ?? []).map((r) => r.community_id as string));
+
+  let targetIds = new Set<string>();
+  if (interests.length > 0) {
+    const { data: matched } = await supabase.from('communities').select('id').in('category', interests);
+    targetIds = new Set((matched ?? []).map((r) => r.id as string));
+  }
+
+  const toAdd = [...targetIds].filter((id) => !currentIds.has(id));
+  const toRemove = [...currentIds].filter((id) => !targetIds.has(id));
+
+  if (toAdd.length > 0) {
+    await supabase
+      .from('community_members')
+      .upsert(
+        toAdd.map((communityId) => ({ community_id: communityId, user_id: userId })),
+        { onConflict: 'user_id,community_id', ignoreDuplicates: true }
+      );
+  }
+  if (toRemove.length > 0) {
+    await supabase.from('community_members').delete().eq('user_id', userId).in('community_id', toRemove);
+  }
+
+  const changed = [...new Set([...toAdd, ...toRemove])];
+  await Promise.all(changed.map((id) => refreshMemberCount(supabase, id)));
+}
+
 export async function toggleInterest(user: User, category: string): Promise<User> {
   const interests = user.interests.includes(category)
     ? user.interests.filter((c) => c !== category)
@@ -419,6 +493,7 @@ export async function toggleInterest(user: User, category: string): Promise<User
     .select()
     .single();
   if (error || !data) throw new Error('관심사 저장에 실패했습니다.');
+  await syncCommunityMembership(supabase, user.id, interests);
   return mapUserRow(data);
 }
 
@@ -475,13 +550,17 @@ export async function createCommunity(input: { category: string; userId: string 
     .maybeSingle();
   if (existing) return mapCommunityRow(existing);
 
+  // member_count는 0에서 시작합니다 — 이 함수를 부르는 쪽(addCustomCommunityAction)이
+  // 곧바로 toggleInterest로 만든 사람을 관심사에 등록하고, 그때 실제 가입 이력이
+  // 생기면서 syncCommunityMembership이 회원수를 1로 맞춰줍니다.
   const { data: inserted, error } = await supabase
     .from('communities')
     .insert({
       name: `${trimmed} 모임`,
       category: trimmed,
       description: '직접 등록하신 관심 주제예요. 같은 관심사를 가진 분들과 만나보세요.',
-      member_count: 1,
+      member_count: 0,
+      seed_member_count: 0,
     })
     .select()
     .single();
