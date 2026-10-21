@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --page-bg: #FAF4E6;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--page-bg);
+  color: #22201B;
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+/* 터치 영역 최소 48px 보장 */
+button,
+a.btn,
+input,
+select,
+textarea {
+  min-height: 48px;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.container-page {
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: #FDFBF5;
+  box-shadow: 0 0 40px rgba(59, 54, 46, 0.06);
+}
+
+@media (min-width: 1024px) {
+  .container-page {
+    max-width: 720px;
+  }
+}
