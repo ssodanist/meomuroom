@@ -42,7 +42,7 @@ export default async function HomePage() {
     <div>
       <header className="px-5 pb-2 pt-6">
         <p className="text-lg text-ink-700/70">안녕하세요, 반가워요</p>
-        <h1 className="text-3xl font-extrabold text-ink-900">
+        <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight text-moss-900">
           {user.nickname}님 🌤️
         </h1>
       </header>
@@ -79,7 +79,7 @@ export default async function HomePage() {
             <Link
               key={q.href}
               href={q.href}
-              className="flex min-h-touch flex-col items-center justify-center gap-1 rounded-2xl bg-moss-50 py-3 text-center"
+              className="flex min-h-touch flex-col items-center justify-center gap-1 rounded-2xl bg-moss-50 py-3 text-center shadow-soft transition-transform active:scale-[0.97]"
             >
               <span aria-hidden className="text-2xl">
                 {q.icon}
@@ -94,7 +94,7 @@ export default async function HomePage() {
 
       {/* 인기 커뮤니티 둘러보기 — 50개가 넘는 취미 커뮤니티의 규모를 한눈에 보여줍니다 */}
       <section className="pt-6">
-        <div className="flex items-center justify-between px-5">
+        <div className="section-rule mx-5 flex items-center justify-between">
           <h2 className="text-xl font-bold text-ink-900">인기 커뮤니티 둘러보기</h2>
           <Link href="/communities" className="font-semibold text-moss-700">
             전체 {communities.length}개 보기
@@ -109,7 +109,7 @@ export default async function HomePage() {
             >
               <CoverTile
                 category={c.category}
-                className="h-16 w-16 rounded-2xl"
+                className="h-16 w-16 rounded-2xl shadow-soft"
                 iconClassName="text-2xl"
               />
               <span className="line-clamp-1 text-center text-sm font-semibold text-ink-900">
@@ -121,7 +121,7 @@ export default async function HomePage() {
       </section>
 
       <section className="px-5 pt-6">
-        <div className="flex items-center justify-between">
+        <div className="section-rule flex items-center justify-between">
           <h2 className="text-xl font-bold text-ink-900">다가오는 모임</h2>
           <Link href="/meetups" className="font-semibold text-moss-700">
             더보기
@@ -158,7 +158,7 @@ export default async function HomePage() {
       </section>
 
       <section className="px-5 pt-6">
-        <div className="flex items-center justify-between">
+        <div className="section-rule flex items-center justify-between">
           <h2 className="text-xl font-bold text-ink-900">커뮤니티 새 소식</h2>
           <Link href="/communities" className="font-semibold text-moss-700">
             더보기
@@ -201,7 +201,7 @@ export default async function HomePage() {
 
       {hotDiscussions.length > 0 ? (
         <section className="px-5 pb-8 pt-6">
-          <div className="flex items-center justify-between">
+          <div className="section-rule flex items-center justify-between">
             <h2 className="text-xl font-bold text-ink-900">지금 뜨거운 토론</h2>
             <Link href="/discussions" className="font-semibold text-moss-700">
               더보기

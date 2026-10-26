@@ -24,11 +24,14 @@ export default async function LoginPage({
   return (
     <div className="flex min-h-screen flex-col px-6 py-10">
       <div>
-        <p className="text-lg text-ink-700/70">🌿 머무름</p>
-        <h1 className="mt-2 text-3xl font-extrabold leading-snug text-ink-900">
+        <p className="flex items-center gap-2 text-lg font-semibold tracking-wide text-moss-700">
+          <span aria-hidden>🌿</span> 머무름
+        </p>
+        <h1 className="mt-4 font-serif text-3xl font-bold leading-snug tracking-tight text-moss-900">
           취미를 나누고,{'\n'}
           마음 편히 이야기하는 공간
         </h1>
+        <div className="mt-6 h-px w-14 bg-clay-300" aria-hidden />
 
         {searchParams.restored ? (
           <div className="mt-6 rounded-xl bg-moss-50 p-4 text-lg text-moss-800">
@@ -63,14 +66,14 @@ export default async function LoginPage({
         <div className="mt-10 flex flex-col gap-4">
           <a
             href={`/api/auth/kakao/start?assisted=${assisted ? '1' : '0'}`}
-            className="min-h-touch flex w-full items-center justify-center gap-2 rounded-xl bg-[#FEE500] text-lg font-bold text-[#3C1E1E]"
+            className="min-h-touch flex w-full items-center justify-center gap-2 rounded-2xl bg-[#FEE500] text-lg font-bold text-[#3C1E1E] shadow-soft transition-transform active:scale-[0.99] active:shadow-none"
           >
             <span aria-hidden>💬</span> 카카오로 시작하기
           </a>
 
           <a
             href={`/api/auth/naver/start?assisted=${assisted ? '1' : '0'}`}
-            className="min-h-touch flex w-full items-center justify-center gap-2 rounded-xl bg-[#03C75A] text-lg font-bold text-white"
+            className="min-h-touch flex w-full items-center justify-center gap-2 rounded-2xl bg-[#03C75A] text-lg font-bold text-white shadow-soft transition-transform active:scale-[0.99] active:shadow-none"
           >
             <span aria-hidden>N</span> 네이버로 시작하기
           </a>
@@ -88,21 +91,24 @@ export default async function LoginPage({
       </div>
 
       {/* 로그인 전에도 머무름이 어떤 곳인지 한눈에 보여줍니다 */}
-      <div className="mt-12">
-        <h2 className="text-center text-xl font-bold text-ink-900">
-          머무름에서는 이런 걸 할 수 있어요
+      <div className="mt-14">
+        <h2 className="whitespace-pre-line text-center font-serif text-2xl font-bold text-moss-900">
+          머무름에서는{'\n'}이런 걸 할 수 있어요
         </h2>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="mt-5 grid grid-cols-2 gap-3">
           {FEATURES.map((f) => (
             <div
               key={f.title}
-              className="flex flex-col items-center gap-1 rounded-2xl border border-moss-100 bg-white p-4 text-center shadow-sm"
+              className="flex flex-col items-center gap-1 rounded-2xl border border-moss-100 bg-white p-4 text-center shadow-soft"
             >
-              <span aria-hidden className="text-3xl">
+              <span
+                aria-hidden
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-moss-50 text-2xl"
+              >
                 {f.icon}
               </span>
-              <p className="mt-1 text-lg font-bold text-ink-900">{f.title}</p>
-              <p className="whitespace-pre-line text-sm text-ink-700/60">
+              <p className="mt-2 text-lg font-bold text-ink-900">{f.title}</p>
+              <p className="whitespace-pre-line text-sm leading-relaxed text-ink-700/60">
                 {f.desc}
               </p>
             </div>
@@ -110,16 +116,16 @@ export default async function LoginPage({
         </div>
       </div>
 
-      <div className="mt-8">
-        <p className="text-center text-lg font-bold text-ink-900">
+      <div className="mt-10">
+        <p className="section-rule text-center text-lg font-bold text-ink-900">
           지금 활발한 인기 커뮤니티
         </p>
-        <div className="mt-3 flex gap-3 overflow-x-auto pb-1">
+        <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
           {spotlightCategories.map((category) => (
             <div key={category} className="flex w-20 shrink-0 flex-col items-center gap-1">
               <CoverTile
                 category={category}
-                className="h-16 w-16 rounded-2xl"
+                className="h-16 w-16 rounded-2xl shadow-soft"
                 iconClassName="text-2xl"
               />
               <span className="line-clamp-1 text-center text-sm font-semibold text-ink-900">

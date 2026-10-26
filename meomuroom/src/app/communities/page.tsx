@@ -28,7 +28,7 @@ export default async function CommunitiesPage({
     <div>
       <PageHeader title="관심사 커뮤니티" />
 
-      <div className="px-5 pb-2 pt-4">
+      <div className="section-rule mx-5 pb-4 pt-4">
         <h2 className="text-xl font-bold text-ink-900">인기 주제로 관심사 등록하기</h2>
         <p className="mt-1 text-base text-ink-700/70">
           전체 {total}개 주제 중 가장 인기있는 주제예요. 눌러서 등록해보세요.
@@ -43,9 +43,9 @@ export default async function CommunitiesPage({
                 {myOnly ? <input type="hidden" name="myOnly" value="1" /> : null}
                 <button
                   type="submit"
-                  className={`min-h-touch rounded-full border-2 px-4 text-base font-bold ${
+                  className={`min-h-touch rounded-full border-2 px-4 text-base font-bold transition-shadow ${
                     on
-                      ? 'border-moss-500 bg-moss-500 text-white'
+                      ? 'border-moss-500 bg-moss-500 text-white shadow-soft'
                       : 'border-moss-200 bg-white text-ink-900'
                   }`}
                 >

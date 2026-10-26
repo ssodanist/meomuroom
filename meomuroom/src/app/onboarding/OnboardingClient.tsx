@@ -79,7 +79,7 @@ export default function OnboardingClient({ assisted }: { assisted: boolean }) {
           ))}
         </div>
 
-        <h1 className="whitespace-pre-line text-3xl font-extrabold leading-snug text-ink-900">
+        <h1 className="whitespace-pre-line font-serif text-3xl font-bold leading-snug tracking-tight text-moss-900">
           {steps[step].title}
         </h1>
         <p className="mt-4 whitespace-pre-line text-lg text-ink-700/80">
@@ -124,9 +124,9 @@ export default function OnboardingClient({ assisted }: { assisted: boolean }) {
                     key={g}
                     type="button"
                     onClick={() => setGender(g)}
-                    className={`min-h-touch flex-1 rounded-xl border-2 text-lg font-semibold ${
+                    className={`min-h-touch flex-1 rounded-xl border-2 text-lg font-semibold transition-shadow ${
                       gender === g
-                        ? 'border-moss-500 bg-moss-500 text-white'
+                        ? 'border-moss-500 bg-moss-500 text-white shadow-soft'
                         : 'border-moss-200 bg-white text-ink-900'
                     }`}
                   >
@@ -150,9 +150,9 @@ export default function OnboardingClient({ assisted }: { assisted: boolean }) {
                   key={name}
                   type="button"
                   onClick={() => toggleInterest(name)}
-                  className={`min-h-touch rounded-full border-2 px-5 text-lg font-semibold ${
+                  className={`min-h-touch rounded-full border-2 px-5 text-lg font-semibold transition-shadow ${
                     active
-                      ? 'border-moss-500 bg-moss-500 text-white'
+                      ? 'border-moss-500 bg-moss-500 text-white shadow-soft'
                       : 'border-moss-200 bg-white text-ink-900'
                   }`}
                 >

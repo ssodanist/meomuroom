@@ -15,8 +15,12 @@ export default function OnboardingCompletePage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
-      <span className="text-4xl">🌿</span>
-      <p className="text-2xl font-extrabold text-ink-900">가입이 완료됐어요!</p>
+      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-moss-50 text-4xl">
+        🌿
+      </span>
+      <p className="font-serif text-2xl font-bold text-moss-900">
+        가입이 완료됐어요!
+      </p>
       <p className="text-lg text-ink-700/70">머무름으로 이동할게요…</p>
     </div>
   );

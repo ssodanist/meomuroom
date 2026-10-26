@@ -33,7 +33,7 @@ export default async function VerifyIdentityPage({
         ) : null}
 
         {assisted ? (
-          <div className="mt-4 rounded-xl border-2 border-moss-200 bg-moss-50 p-4 text-base text-ink-900">
+          <div className="mt-4 rounded-xl border-2 border-moss-200 bg-moss-50 p-4 text-base text-ink-900 shadow-soft">
             여기 적는 이름과 태어난 연도는 본인 확인용으로만 쓰이고, 다른
             회원에게는 절대 보이지 않아요. 화면에는 다음 단계에서 정하는
             별명만 보여요.

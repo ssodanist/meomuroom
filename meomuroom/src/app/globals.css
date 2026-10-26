@@ -38,6 +38,13 @@ textarea {
   box-shadow: 0 0 40px rgba(59, 54, 46, 0.06);
 }
 
+/* 섹션 제목 아래 얇은 구분선 — 잎맥처럼 은은하게, 과장 없이 */
+.section-rule {
+  position: relative;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid rgba(43, 66, 33, 0.1);
+}
+
 @media (min-width: 1024px) {
   .container-page {
     max-width: 720px;

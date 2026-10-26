@@ -15,7 +15,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        {/* 본문용 Noto Sans KR + 인사말·헤드라인용 Gowun Batang(명조) */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700;900&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="font-sans">
         <div className="container-page pb-24">
           {children}
           <BottomNav />

@@ -3,7 +3,8 @@ import { ButtonHTMLAttributes, forwardRef } from 'react';
 type Variant = 'primary' | 'secondary' | 'ghost';
 
 const variantClasses: Record<Variant, string> = {
-  primary: 'bg-moss-500 text-white hover:bg-moss-600 active:bg-moss-700',
+  primary:
+    'bg-moss-500 text-white shadow-soft hover:bg-moss-600 active:bg-moss-700 active:shadow-none',
   secondary:
     'bg-white text-moss-700 border-2 border-moss-300 hover:bg-moss-50',
   ghost: 'bg-transparent text-ink-700 hover:bg-moss-50',
